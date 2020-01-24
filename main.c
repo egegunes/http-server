@@ -18,6 +18,12 @@ int main() {
         exit(EXIT_FAILURE);
     }
 
+    int reuseaddr_val = 1;
+    if (setsockopt(sfd, SOL_SOCKET, SO_REUSEADDR, &reuseaddr_val, (socklen_t) sizeof(SO_REUSEADDR)) == -1) {
+        perror("setsockopt");
+        exit(EXIT_FAILURE);
+    }
+
     my_addr.sin_family = AF_INET;
     my_addr.sin_addr.s_addr = htonl(INADDR_ANY);
     my_addr.sin_port = htons(LISTEN_PORT);
@@ -39,7 +45,12 @@ int main() {
         exit(EXIT_FAILURE);
     }
 
-    printf("%d connected: %s", cfd, inet_ntoa(peer_addr.sin_addr));
+    printf("%d connected: %s\n", cfd, inet_ntoa(peer_addr.sin_addr));
+
+    char buff[8000];
+    while(read(cfd, &buff, sizeof(buff)) > 0) {
+        printf("%s", buff);
+    }
 
     close(sfd);
     close(cfd);
