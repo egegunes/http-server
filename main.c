@@ -1,11 +1,45 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <string.h>
 #include <sys/socket.h>
 #include <netinet/ip.h>
 #include <arpa/inet.h>
 
 #define LISTEN_PORT 6666
+#define REQ_SIZE 80000
+
+ssize_t read_request(int fd, void *buffer, size_t n) {
+    ssize_t n_read;
+    size_t  t_read;
+    char    *buf;
+    char    ch;
+
+    buf = buffer;
+
+    t_read = 0;
+    for (;;) {
+        n_read = read(fd, &ch, 1);
+        if (n_read == -1) {
+            return -1;
+        } else if (n_read == 0) {
+            if (t_read == 0) {
+                return 0;
+            } else {
+                break;
+            }
+        } else {
+            if (t_read < n - 1) {
+                t_read++;
+                *buf++ = ch;
+            }
+            printf("%d\n", ch);
+        }
+    }
+
+    *buf = '\0';
+    return t_read;
+}
 
 int main() {
     int sfd, cfd;
@@ -47,10 +81,14 @@ int main() {
 
     printf("%d connected: %s\n", cfd, inet_ntoa(peer_addr.sin_addr));
 
-    char buff[8000];
-    while(read(cfd, &buff, sizeof(buff)) > 0) {
-        printf("%s", buff);
+    char req[REQ_SIZE];
+    int n_read = read_request(cfd, req, REQ_SIZE);
+    if (n_read < 0) {
+        perror("read");
+        exit(EXIT_FAILURE);
     }
+    printf("%d bytes read\n", n_read);
+    printf("%s\n", req);
 
     close(sfd);
     close(cfd);
