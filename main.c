@@ -2,14 +2,15 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
+#include <errno.h>
 #include <sys/socket.h>
 #include <netinet/ip.h>
 #include <arpa/inet.h>
 
 #define LISTEN_PORT 6666
-#define REQ_SIZE 80000
+#define REQLINE_SIZE 8000
 
-ssize_t read_request(int fd, void *buffer, size_t n) {
+ssize_t read_line(int fd, void *buffer, size_t n) {
     ssize_t n_read;
     size_t  t_read;
     char    *buf;
@@ -33,7 +34,10 @@ ssize_t read_request(int fd, void *buffer, size_t n) {
                 t_read++;
                 *buf++ = ch;
             }
-            printf("%d\n", ch);
+
+            if (ch == '\n') {
+                break;
+            }
         }
     }
 
@@ -79,15 +83,13 @@ int main() {
         exit(EXIT_FAILURE);
     }
 
-    printf("%d connected: %s\n", cfd, inet_ntoa(peer_addr.sin_addr));
-
-    char req[REQ_SIZE];
-    int n_read = read_request(cfd, req, REQ_SIZE);
+    char req[REQLINE_SIZE];
+    int n_read = read_line(cfd, req, REQLINE_SIZE);
     if (n_read < 0) {
         perror("read");
         exit(EXIT_FAILURE);
     }
-    printf("%d bytes read\n", n_read);
+
     printf("%s\n", req);
 
     close(sfd);
