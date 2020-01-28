@@ -8,37 +8,39 @@
 #include <arpa/inet.h>
 
 #define LISTEN_PORT 6666
-#define REQLINE_SIZE 8000
+#define REQ_SIZE 80000
 
-ssize_t read_line(int fd, void *buffer, size_t n) {
+ssize_t read_request(int fd, void *buffer, size_t n) {
     ssize_t n_read;
     size_t  t_read;
     char    *buf;
     char    ch;
+    char    lch;
 
     buf = buffer;
 
     t_read = 0;
     for (;;) {
         n_read = read(fd, &ch, 1);
+
         if (n_read == -1) {
             return -1;
         } else if (n_read == 0) {
             if (t_read == 0) {
                 return 0;
-            } else {
-                break;
-            }
-        } else {
-            if (t_read < n - 1) {
-                t_read++;
-                *buf++ = ch;
             }
 
-            if (ch == '\n') {
-                break;
-            }
+            break;
+        } else if (t_read < n - 1) {
+            t_read++;
+            *buf++ = ch;
         }
+
+        if (ch == '\r' && lch == '\n') {
+            break;
+        }
+
+        lch = ch;
     }
 
     *buf = '\0';
@@ -83,8 +85,8 @@ int main() {
         exit(EXIT_FAILURE);
     }
 
-    char req[REQLINE_SIZE];
-    int n_read = read_line(cfd, req, REQLINE_SIZE);
+    char req[REQ_SIZE];
+    int n_read = read_request(cfd, req, REQ_SIZE);
     if (n_read < 0) {
         perror("read");
         exit(EXIT_FAILURE);
