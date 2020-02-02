@@ -8,9 +8,9 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
-#define CR          (u_char)'\r'
-#define LF          (u_char)'\n'
-#define NULLCHAR    (u_char)'\0'
+#define CR (u_char)'\r'
+#define LF (u_char)'\n'
+#define NULLCHAR (u_char)'\0'
 #define LISTEN_PORT 6666
 #define REQ_SIZE 80000
 
@@ -60,10 +60,10 @@ ssize_t read_request(int fd, void *buffer, size_t n) {
 int parse_request(char *req) {
   size_t max_groups = 4;
 
-  int           ret;
-  unsigned int  req_line_offset;
-  regex_t       regex;
-  regmatch_t    groups[max_groups];
+  int ret;
+  unsigned int req_line_offset;
+  regex_t regex;
+  regmatch_t groups[max_groups];
 
   struct http_request_s request;
 
