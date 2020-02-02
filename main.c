@@ -12,7 +12,7 @@
 
 ssize_t read_request(int fd, void *buffer, size_t n) {
     ssize_t n_read;
-    size_t  t_read;
+    ssize_t t_read;
     char    *buf;
     char    ch;
     char    lch;
@@ -45,6 +45,15 @@ ssize_t read_request(int fd, void *buffer, size_t n) {
 
     *buf = '\0';
     return t_read;
+}
+
+ssize_t write_response(int fd) {
+    ssize_t  n_write;
+    char    *s_line = "HTTP/1.1 200 OK\r\nHost: 0.0.0.0:6666\r\n\r\n";
+
+    n_write = write(fd, s_line, strlen(s_line));
+
+    return n_write;
 }
 
 int main() {
@@ -86,13 +95,21 @@ int main() {
     }
 
     char req[REQ_SIZE];
-    int n_read = read_request(cfd, req, REQ_SIZE);
+    ssize_t n_read = read_request(cfd, req, REQ_SIZE);
     if (n_read < 0) {
         perror("read");
         exit(EXIT_FAILURE);
     }
 
     printf("%s\n", req);
+
+    ssize_t n_write = write_response(cfd);
+    if (n_write < 0) {
+        perror("write");
+        exit(EXIT_FAILURE);
+    }
+
+    printf("%ld\n", n_write);
 
     close(sfd);
     close(cfd);
