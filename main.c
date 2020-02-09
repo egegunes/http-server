@@ -77,8 +77,6 @@ int parse_request(http_request_t *r, char *req) {
   regex_t regex;
   regmatch_t req_groups[MAX_REQ_GROUPS];
 
-  struct http_request_s request;
-
   if (regcomp(
           &regex,
           "([A-Z]+)[[:blank:]]([\\/a-zA-Z0-9.]+)[[:blank:]]HTTP\\/([0-9.]+)",
@@ -90,14 +88,14 @@ int parse_request(http_request_t *r, char *req) {
     // TODO: Error check
   }
 
-  request.method = req + req_groups[1].rm_so;
-  request.method[req_groups[1].rm_eo] = NULLCHAR;
+  r->method = req + req_groups[1].rm_so;
+  r->method[req_groups[1].rm_eo] = NULLCHAR;
 
-  request.path = req + req_groups[2].rm_so;
-  request.path[req_groups[2].rm_eo - req_groups[2].rm_so] = NULLCHAR;
+  r->path = req + req_groups[2].rm_so;
+  r->path[req_groups[2].rm_eo - req_groups[2].rm_so] = NULLCHAR;
 
-  request.http_version = req + req_groups[3].rm_so;
-  request.http_version[req_groups[3].rm_eo - req_groups[3].rm_so] = NULLCHAR;
+  r->http_version = req + req_groups[3].rm_so;
+  r->http_version[req_groups[3].rm_eo - req_groups[3].rm_so] = NULLCHAR;
 
   regfree(&regex);
 
@@ -162,12 +160,13 @@ int main() {
 
   printf("%s\n", req);
 
-  http_request_t *r;
+  http_request_t *r = malloc(sizeof(*r));
   parse_request(r, req);
   printf("Method: %s\n", r->method);
   printf("Path: %s\n", r->path);
   printf("HTTP Version: %s\n", r->http_version);
 
+  free(r);
   close(sfd);
   close(cfd);
 
