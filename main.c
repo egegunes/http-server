@@ -13,12 +13,28 @@
 #define NULLCHAR (u_char)'\0'
 #define LISTEN_PORT 6666
 #define REQ_SIZE 80000
+#define MAX_REQ_GROUPS 4
+#define MIN_HEADERS 1
+#define MAX_HEADERS 100
+
+typedef struct {
+  char *key;
+  char *value;
+} http_header_t;
+
+typedef struct {
+  http_header_t *host;
+} http_headers_in_t;
 
 struct http_request_s {
   char *method;
   char *path;
   char *http_version;
+
+  http_headers_in_t headers_in;
 };
+
+typedef struct http_request_s http_request_t;
 
 ssize_t read_request(int fd, void *buffer, size_t n) {
   ssize_t n_read;
@@ -57,47 +73,35 @@ ssize_t read_request(int fd, void *buffer, size_t n) {
   return t_read;
 }
 
-int parse_request(char *req) {
-  size_t max_groups = 4;
-
-  int ret;
-  unsigned int req_line_offset;
+int parse_request(http_request_t *r, char *req) {
   regex_t regex;
-  regmatch_t groups[max_groups];
+  regmatch_t req_groups[MAX_REQ_GROUPS];
 
   struct http_request_s request;
 
-  ret = regcomp(
-      &regex,
-      "([A-Z]+)[[:blank:]]([\\/a-zA-Z0-9.]+)[[:blank:]]HTTP\\/([0-9.]+)",
-      REG_EXTENDED);
-  if (ret != 0) {
-    return ret;
+  if (regcomp(
+          &regex,
+          "([A-Z]+)[[:blank:]]([\\/a-zA-Z0-9.]+)[[:blank:]]HTTP\\/([0-9.]+)",
+          REG_EXTENDED) != 0) {
+    // TODO: Error check
   }
 
-  ret = regexec(&regex, req, max_groups, groups, 0);
-  if (ret != 0) {
-    return ret;
+  if (regexec(&regex, req, MAX_REQ_GROUPS, req_groups, 0) != 0) {
+    // TODO: Error check
   }
 
-  req_line_offset = groups[0].rm_eo;
-  printf("Request line offset: %d\n\n", req_line_offset);
+  request.method = req + req_groups[1].rm_so;
+  request.method[req_groups[1].rm_eo] = NULLCHAR;
 
-  request.method = req + groups[1].rm_so;
-  request.method[groups[1].rm_eo] = NULLCHAR;
-  printf("Method: %s\n\n", request.method);
+  request.path = req + req_groups[2].rm_so;
+  request.path[req_groups[2].rm_eo - req_groups[2].rm_so] = NULLCHAR;
 
-  request.path = req + groups[2].rm_so;
-  request.path[groups[2].rm_eo] = NULLCHAR;
-  printf("Path: %s\n\n", request.path);
-
-  request.http_version = req + groups[3].rm_so;
-  request.http_version[groups[3].rm_eo] = NULLCHAR;
-  printf("HTTP Version: %s\n\n", request.http_version);
+  request.http_version = req + req_groups[3].rm_so;
+  request.http_version[req_groups[3].rm_eo - req_groups[3].rm_so] = NULLCHAR;
 
   regfree(&regex);
 
-  return ret;
+  return 0;
 }
 
 ssize_t write_response(int fd) {
@@ -158,20 +162,11 @@ int main() {
 
   printf("%s\n", req);
 
-  int regex_ret = parse_request(req);
-  if (regex_ret == 0) {
-    printf("Match!\n");
-  } else if (regex_ret == REG_NOMATCH) {
-    printf("No match!\n");
-  }
-
-  ssize_t n_write = write_response(cfd);
-  if (n_write < 0) {
-    perror("write");
-    exit(EXIT_FAILURE);
-  }
-
-  printf("%ld\n", n_write);
+  http_request_t *r;
+  parse_request(r, req);
+  printf("Method: %s\n", r->method);
+  printf("Path: %s\n", r->path);
+  printf("HTTP Version: %s\n", r->http_version);
 
   close(sfd);
   close(cfd);
