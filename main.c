@@ -11,7 +11,7 @@
 #define CR (u_char)'\r'
 #define LF (u_char)'\n'
 #define NULLCHAR (u_char)'\0'
-#define LISTEN_PORT 6666
+#define LISTEN_PORT 8000
 #define REQ_SIZE 80000
 #define MAX_REQ_GROUPS 4
 #define MIN_HEADERS 1
@@ -102,9 +102,53 @@ int parse_request(http_request_t *r, char *req) {
   return 0;
 }
 
-ssize_t write_response(int fd) {
+char *read_file(char *filename) {
+  char *buffer = 0;
+  long length;
+
+  printf("%s\n", filename);
+
+  FILE *f = fopen(filename, "r");
+
+  if (!f) {
+    return buffer;
+  }
+
+  fseek(f, 0, SEEK_END);
+  length = ftell(f);
+  fseek(f, 0, SEEK_SET);
+  buffer = malloc(length);
+
+  if (buffer) {
+    fread(buffer, 1, length, f);
+  }
+
+  fclose(f);
+
+  return buffer;
+}
+
+ssize_t write_response(int fd, char *content) {
   ssize_t n_write;
-  char *s_line = "HTTP/1.1 200 OK\r\nHost: 0.0.0.0:6666\r\n\r\n";
+  char *s_line = "HTTP/1.1 200 OK\r\n"
+                 "Host: 0.0.0.0:8000\r\n"
+                 "Server: lighteinte\r\n"
+                 "Content-type: text/plain\r\n"
+                 "Connection: close\r\n\r\n";
+
+  n_write = write(fd, s_line, strlen(s_line));
+  n_write += write(fd, content, strlen(content));
+
+  return n_write;
+}
+
+ssize_t respond_404(int fd) {
+  ssize_t n_write;
+  char *s_line = "HTTP/1.1 404 Not Found\r\n"
+                 "Host: 0.0.0.0:8000\r\n"
+                 "Server: lighteinte\r\n"
+                 "Content-type: text/plain\r\n"
+                 "Connection: close\r\n\r\n";
 
   n_write = write(fd, s_line, strlen(s_line));
 
@@ -166,9 +210,16 @@ int main() {
   printf("Path: %s\n", r->path);
   printf("HTTP Version: %s\n", r->http_version);
 
-  free(r);
-  close(sfd);
-  close(cfd);
+  char *filename = ++r->path;
+  char *content = read_file(filename);
+  if (content == 0) {
+    respond_404(cfd);
+  } else {
+    write_response(cfd, content);
+  }
+
+  shutdown(sfd, SHUT_RD);
+  shutdown(cfd, SHUT_WR);
 
   return 0;
 }
